@@ -55,11 +55,12 @@ const HELP_MESSAGE = `👋 Xin chào! Tôi là bot chuyển đổi link Shopee.
 
 📎 Hãy gửi link sản phẩm Shopee, tôi sẽ tạo link affiliate giúp bạn!
 
-⚠️ Lưu ý: Hãy thêm chữ trước link để Zalo không tự chuyển thành thẻ liên kết.
+📌 Cách gửi link:
+1. Paste link vào ô tin nhắn
+2. Bấm ✕ để tắt thẻ xem trước liên kết
+3. Bấm Gửi
 
-✅ Ví dụ cách gửi đúng:
-s https://s.shopee.vn/xxxxx
-s https://shopee.vn/ten-san-pham-i.123.456`;
+Hỗ trợ link từ app (s.shopee.vn) và link web (shopee.vn).`;
 
 const NOT_SHOPEE_MESSAGE = `⚠️ Link bạn gửi không phải link Shopee.
 
@@ -67,10 +68,10 @@ const NOT_SHOPEE_MESSAGE = `⚠️ Link bạn gửi không phải link Shopee.
 
 const UNSUPPORTED_MESSAGE = `⚠️ Tôi không đọc được tin nhắn dạng thẻ liên kết.
 
-✅ Hãy thêm chữ trước link để gửi dạng text, ví dụ:
-s https://s.shopee.vn/xxxxx
-
-Hoặc gõ "s " rồi paste link vào sau.`;
+📌 Hãy gửi lại link theo cách sau:
+1. Paste link vào ô tin nhắn
+2. Bấm ✕ để tắt thẻ xem trước liên kết
+3. Bấm Gửi`;
 
 /**
  * POST /api/zalo-webhook
