@@ -103,13 +103,16 @@ export async function POST(request) {
 
     const chatId = message.chat?.id;
     const userText = message.text.trim();
+    console.log('[Webhook] chatId:', chatId, '| userText:', userText);
 
     if (!chatId) {
+      console.warn('[Webhook] No chat ID found');
       return NextResponse.json({ message: 'No chat ID' }, { status: 400 });
     }
 
     // --- 3. Extract and find Shopee URL ---
     const urls = extractUrls(userText);
+    console.log('[Webhook] Extracted URLs:', urls);
 
     // If no URL found at all, also check if the whole message is a URL without protocol
     if (urls.length === 0) {
@@ -121,14 +124,17 @@ export async function POST(request) {
 
     if (urls.length === 0) {
       // No URL in message → send help
+      console.log('[Webhook] No URL found → sending help message');
       await sendMessage(chatId, HELP_MESSAGE);
       return NextResponse.json({ message: 'Success' });
     }
 
     const shopeeUrl = findShopeeUrl(urls);
+    console.log('[Webhook] Shopee URL found:', shopeeUrl);
 
     if (!shopeeUrl) {
       // URLs found but none are Shopee → notify
+      console.log('[Webhook] No Shopee URL → sending not-shopee message');
       await sendMessage(chatId, NOT_SHOPEE_MESSAGE);
       return NextResponse.json({ message: 'Success' });
     }
@@ -159,6 +165,7 @@ export async function POST(request) {
 
       // Format and send reply
       const reply = formatReply(product, result.affiliateLink);
+      console.log('[Webhook] Sending affiliate reply, length:', reply.length);
       await sendMessage(chatId, reply);
     } catch (err) {
       console.error('Process Shopee URL error:', err.message);
