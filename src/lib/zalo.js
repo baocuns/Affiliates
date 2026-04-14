@@ -27,29 +27,36 @@ export async function sendMessage(chatId, text) {
   const token = getBotToken();
   const url = `${ZALO_BOT_API}/bot${token}/sendMessage`;
 
-  console.log('[Zalo] sendMessage →', { chatId, textLength: text.length, url });
+  console.log('[Zalo] sendMessage →', { chatId, textLength: text.length });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
-
-  const responseText = await response.text();
-  console.log('[Zalo] sendMessage response:', response.status, responseText);
-
-  let data;
   try {
-    data = JSON.parse(responseText);
-  } catch {
-    throw new Error(`sendMessage returned non-JSON: ${response.status} ${responseText}`);
-  }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    });
 
-  if (!data.ok) {
-    throw new Error(`sendMessage failed: ${JSON.stringify(data)}`);
-  }
+    const responseText = await response.text();
+    console.log('[Zalo] sendMessage response:', response.status, responseText);
 
-  return data.result;
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('[Zalo] sendMessage non-JSON response:', response.status, responseText);
+      return { ok: false, error: `Non-JSON response: ${response.status}` };
+    }
+
+    if (!data.ok) {
+      console.warn('[Zalo] sendMessage API error:', data.description || data.error_code);
+      return { ok: false, error: data.description, errorCode: data.error_code };
+    }
+
+    return { ok: true, result: data.result };
+  } catch (err) {
+    console.error('[Zalo] sendMessage fetch error:', err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 /**
