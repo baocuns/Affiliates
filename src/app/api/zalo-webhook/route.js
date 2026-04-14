@@ -82,15 +82,22 @@ export async function POST(request) {
 
     // --- 2. Parse webhook body ---
     const body = await request.json();
+    console.log('Zalo webhook body:', JSON.stringify(body, null, 2));
 
-    if (!body.ok || !body.result) {
+    // Handle both formats:
+    // Format 1 (docs): { ok: true, result: { event_name, message } }
+    // Format 2 (raw):  { event_name, message }
+    const payload = body.result || body;
+    const { event_name, message } = payload;
+
+    if (!event_name || !message) {
+      console.warn('Webhook: Missing event_name or message in payload');
       return NextResponse.json({ message: 'Invalid payload' }, { status: 400 });
     }
 
-    const { event_name, message } = body.result;
-
     // Only handle text messages
     if (event_name !== 'message.text.received' || !message?.text) {
+      console.log('Webhook: Ignoring event:', event_name);
       return NextResponse.json({ message: 'Ignored' });
     }
 
