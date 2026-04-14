@@ -53,15 +53,24 @@ function formatReply(product, affiliateLink) {
 
 const HELP_MESSAGE = `👋 Xin chào! Tôi là bot chuyển đổi link Shopee.
 
-📎 Hãy gửi cho tôi link sản phẩm Shopee, tôi sẽ tạo link affiliate giúp bạn!
+📎 Hãy gửi link sản phẩm Shopee, tôi sẽ tạo link affiliate giúp bạn!
 
-Hỗ trợ:
-• Link từ app: https://s.shopee.vn/xxxxx
-• Link web: https://shopee.vn/ten-san-pham-i.123.456`;
+⚠️ Lưu ý: Hãy thêm chữ trước link để Zalo không tự chuyển thành thẻ liên kết.
+
+✅ Ví dụ cách gửi đúng:
+s https://s.shopee.vn/xxxxx
+s https://shopee.vn/ten-san-pham-i.123.456`;
 
 const NOT_SHOPEE_MESSAGE = `⚠️ Link bạn gửi không phải link Shopee.
 
 📎 Tôi chỉ hỗ trợ chuyển đổi link từ shopee.vn hoặc s.shopee.vn. Hãy thử lại nhé!`;
+
+const UNSUPPORTED_MESSAGE = `⚠️ Tôi không đọc được tin nhắn dạng thẻ liên kết.
+
+✅ Hãy thêm chữ trước link để gửi dạng text, ví dụ:
+s https://s.shopee.vn/xxxxx
+
+Hoặc gõ "s " rồi paste link vào sau.`;
 
 /**
  * POST /api/zalo-webhook
@@ -95,13 +104,25 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Invalid payload' }, { status: 400 });
     }
 
+    const chatId = message.chat?.id;
+
+    // --- Handle unsupported messages (link cards, etc.) ---
+    // When users paste a Shopee link, Zalo auto-renders it as a rich link card
+    // which the Bot API classifies as "unsupported". We catch this and guide the user.
+    if (event_name === 'message.unsupported.received') {
+      console.log('[Webhook] Unsupported message received → sending guide');
+      if (chatId) {
+        await sendMessage(chatId, UNSUPPORTED_MESSAGE);
+      }
+      return NextResponse.json({ message: 'Success' });
+    }
+
     // Only handle text messages
     if (event_name !== 'message.text.received' || !message?.text) {
       console.log('Webhook: Ignoring event:', event_name);
       return NextResponse.json({ message: 'Ignored' });
     }
 
-    const chatId = message.chat?.id;
     const userText = message.text.trim();
     console.log('[Webhook] chatId:', chatId, '| userText:', userText);
 
