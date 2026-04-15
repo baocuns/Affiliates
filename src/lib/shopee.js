@@ -8,7 +8,7 @@
  * 4. https://shopee.vn/opaanlp/SHOP_ID/ITEM_ID (redirect from short link)
  */
 
-const SHOPEE_DOMAINS = ['shopee.vn', 's.shopee.vn', 'shope.ee'];
+const SHOPEE_DOMAINS = ['shopee.vn', 's.shopee.vn', 'shope.ee', 'vn.shp.ee'];
 
 /**
  * Check if URL is a Shopee short link that needs to be resolved
@@ -16,7 +16,7 @@ const SHOPEE_DOMAINS = ['shopee.vn', 's.shopee.vn', 'shope.ee'];
 export function isShortLink(url) {
   try {
     const parsed = new URL(url);
-    return parsed.hostname === 's.shopee.vn' || parsed.hostname === 'shope.ee';
+    return parsed.hostname === 's.shopee.vn' || parsed.hostname === 'shope.ee' || parsed.hostname === 'vn.shp.ee';
   } catch {
     return false;
   }

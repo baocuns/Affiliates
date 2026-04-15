@@ -32,25 +32,6 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const prof = await fetchProfile(currentUser.id);
-          setProfile(prof);
-        }
-      } catch (err) {
-        console.error('getSession error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
