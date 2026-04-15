@@ -171,11 +171,12 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Success' });
     }
 
-    const subId = process.env.SHOPEE_SUB_ID || '';
+    const subId1 = process.env.SHOPEE_SUB_ID || '';
 
     try {
       // Process URL → resolve short link + extract IDs + build affiliate link
-      const result = await processShopeeUrl(shopeeUrl, affiliateId, subId);
+      // Note: Zalo doesn't have user tracking (sub_id2) yet
+      const result = await processShopeeUrl(shopeeUrl, affiliateId, subId1);
 
       // Fetch product info (non-critical)
       let product = null;

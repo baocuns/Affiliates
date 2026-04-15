@@ -108,12 +108,27 @@ export function buildProductUrl(shopId, itemId) {
 }
 
 /**
- * Build the affiliate redirect URL
+ * Generate a short ID for tracking conversions (6 chars alphanumeric)
+ * Used as sub_id2 in affiliate links
  */
-export function buildAffiliateLink(originalUrl, affiliateId, subId = '') {
+export function generateShortId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Build the affiliate redirect URL
+ * sub_id format: {subId1}-{subId2} → Shopee auto-splits by '-' into Sub_id1, Sub_id2
+ */
+export function buildAffiliateLink(originalUrl, affiliateId, subId1 = '', subId2 = '') {
   const encodedUrl = encodeURIComponent(originalUrl);
   let link = `https://s.shopee.vn/an_redir?origin_link=${encodedUrl}&affiliate_id=${affiliateId}`;
-  if (subId) {
+  if (subId1) {
+    const subId = subId2 ? `${subId1}-${subId2}` : subId1;
     link += `&sub_id=${subId}`;
   }
   return link;
@@ -122,7 +137,7 @@ export function buildAffiliateLink(originalUrl, affiliateId, subId = '') {
 /**
  * Main function: Process any type of Shopee URL and return affiliate link + IDs
  */
-export async function processShopeeUrl(inputUrl, affiliateId, subId = '') {
+export async function processShopeeUrl(inputUrl, affiliateId, subId1 = '', subId2 = '') {
   // Step 1: Validate input
   let url = inputUrl.trim();
   if (!url.startsWith('http')) {
@@ -147,7 +162,7 @@ export async function processShopeeUrl(inputUrl, affiliateId, subId = '') {
 
   // Step 4: Build canonical product URL and affiliate link
   const productUrl = buildProductUrl(ids.shopId, ids.itemId);
-  const affiliateLink = buildAffiliateLink(productUrl, affiliateId, subId);
+  const affiliateLink = buildAffiliateLink(productUrl, affiliateId, subId1, subId2);
 
   return {
     shopId: ids.shopId,

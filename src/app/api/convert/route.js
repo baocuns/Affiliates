@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { processShopeeUrl } from '@/lib/shopee';
+import { processShopeeUrl, generateShortId } from '@/lib/shopee';
 import { getProductInfo } from '@/lib/scraper';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request) {
   try {
@@ -24,10 +25,29 @@ export async function POST(request) {
     }
 
     // Get default sub_id from environment
-    const subId = process.env.SHOPEE_SUB_ID || '';
+    const subId1 = process.env.SHOPEE_SUB_ID || '';
+
+    // Check auth - get current user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Generate short_id for tracking
+    let shortId = '';
+    if (user) {
+      // Generate unique short_id, retry if collision
+      for (let attempt = 0; attempt < 5; attempt++) {
+        shortId = generateShortId();
+        const { data: existing } = await supabase
+          .from('conversions')
+          .select('id')
+          .eq('short_id', shortId)
+          .single();
+        if (!existing) break;
+      }
+    }
 
     // Step 1: Process URL → resolve short link + extract IDs + build affiliate link
-    const result = await processShopeeUrl(url, affiliateId, subId);
+    const result = await processShopeeUrl(url, affiliateId, subId1, shortId);
 
     // Step 2: Fetch product info via OG scraper
     let product = null;
@@ -36,6 +56,38 @@ export async function POST(request) {
     } catch (err) {
       console.error('Failed to fetch product info:', err.message);
       // Non-critical: continue without product info
+    }
+
+    // Step 3: Save conversion to database (if user is logged in)
+    let conversionId = null;
+    if (user && shortId) {
+      try {
+        const { data: conversion, error: insertError } = await supabase
+          .from('conversions')
+          .insert({
+            short_id: shortId,
+            user_id: user.id,
+            original_url: result.originalUrl,
+            affiliate_url: result.affiliateLink,
+            product_name: product?.name || 'Sản phẩm Shopee',
+            product_image: product?.image || null,
+            product_description: product?.description || null,
+            shop_id: parseInt(result.shopId) || null,
+            item_id: parseInt(result.itemId) || null,
+            source: 'web',
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('Failed to save conversion:', insertError.message);
+        } else {
+          conversionId = conversion?.id;
+        }
+      } catch (err) {
+        console.error('DB insert error:', err.message);
+        // Non-critical: continue without DB record
+      }
     }
 
     return NextResponse.json({
@@ -52,6 +104,8 @@ export async function POST(request) {
         itemId: result.itemId,
         productUrl: result.productUrl,
         originalUrl: result.originalUrl,
+        shortId,
+        conversionId,
       },
     });
   } catch (error) {

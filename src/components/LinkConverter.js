@@ -16,6 +16,7 @@ export default function LinkConverter({ onResult, onLoading }) {
       return;
     }
 
+
     setError('');
     setIsLoading(true);
     onLoading?.(true);
@@ -158,6 +159,8 @@ export default function LinkConverter({ onResult, onLoading }) {
       <p className="text-center text-xs text-muted mt-3 px-2">
         Hỗ trợ link rút gọn <span className="font-mono text-primary/70">s.shopee.vn</span> và link đầy đủ <span className="font-mono text-primary/70">shopee.vn</span>
       </p>
+
+
     </div>
   );
 }
