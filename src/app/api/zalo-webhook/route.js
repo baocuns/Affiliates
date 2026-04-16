@@ -150,17 +150,29 @@ export async function POST(request) {
       
       // If waiting for OTP
       if (pendingProfile && isMessage) {
-        if (/^\d{6}$/.test(userText)) {
+        const otpMatch = userText.match(/\d{6}/);
+        
+        if (otpMatch) {
+          const token = otpMatch[0];
           await sendMessage(chatId, '⏳ Đang xác minh mã OTP...');
           const { error } = await supabaseAdmin.auth.verifyOtp({
             email: pendingProfile.email,
-            token: userText,
+            token: token,
             type: 'email'
           });
           
           if (error) {
-             await sendMessage(chatId, `❌ Sai mã OTP hoặc mã đã hết hạn. Vui lòng nhập lại, hoặc gửi một email khác để bắt đầu lại.`);
-             return NextResponse.json({ message: 'Success' });
+             // Thử lại với type 'magiclink' nếu 'email' không được do khác biệt phiên bản Supabase
+             const { error: error2 } = await supabaseAdmin.auth.verifyOtp({
+                email: pendingProfile.email,
+                token: token,
+                type: 'magiclink'
+             });
+             
+             if (error2) {
+                await sendMessage(chatId, `❌ Sai mã OTP hoặc mã đã hết hạn. Vui lòng nhập lại, hoặc gửi một email khác để bắt đầu lại.`);
+                return NextResponse.json({ message: 'Success' });
+             }
           }
           
           // OTP valid
