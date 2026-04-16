@@ -23,6 +23,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get('file');
     const shareRate = parseFloat(formData.get('shareRate') || process.env.COMMISSION_USER_SHARE_RATE || '0.8');
+    const taxRate = parseFloat(process.env.COMMISSION_TAX_RATE || '0.1');
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -89,7 +90,7 @@ export async function POST(request) {
 
     // Process rows
     const { matched, unmatched, duplicated, cancelled } = processRows(
-      mappedRows, conversionMap, existingOrders, shareRate
+      mappedRows, conversionMap, existingOrders, shareRate, taxRate
     );
 
     // Insert matched commissions
@@ -128,6 +129,7 @@ export async function POST(request) {
           order_value: u.order_value,
           channel: u.channel,
           total_commission: u.total_commission,
+          tax_amount: u.tax_amount,
           user_share: 0,
           owner_share: u.total_commission,
           share_rate: shareRate,

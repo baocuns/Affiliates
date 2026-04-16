@@ -99,7 +99,7 @@ export function parseDate(value) {
  * @param {number} shareRate - User share rate (0.8 = 80%)
  * @returns {{ matched: Array, unmatched: Array, duplicated: Array, cancelled: Array }}
  */
-export function processRows(rows, conversionMap, existingOrders, shareRate = 0.8) {
+export function processRows(rows, conversionMap, existingOrders, shareRate = 0.8, taxRate = 0.1) {
   const matched = [];
   const unmatched = [];
   const duplicated = [];
@@ -130,6 +130,9 @@ export function processRows(rows, conversionMap, existingOrders, shareRate = 0.8
     // Try to match with conversion
     const conversion = subId2 ? conversionMap.get(subId2) : null;
 
+    const taxAmount = Math.round(netCommission * taxRate * 100) / 100;
+    const postTaxCommission = netCommission - taxAmount;
+
     const commission = {
       order_id: orderId,
       order_status: row.order_status,
@@ -142,14 +145,15 @@ export function processRows(rows, conversionMap, existingOrders, shareRate = 0.8
       order_value: parseNumber(row.order_value),
       channel: row.channel,
       total_commission: netCommission,
+      tax_amount: taxAmount,
       share_rate: shareRate,
     };
 
     if (conversion) {
       commission.conversion_id = conversion.conversion_id;
       commission.user_id = conversion.user_id;
-      commission.user_share = Math.round(netCommission * shareRate * 100) / 100;
-      commission.owner_share = Math.round(netCommission * (1 - shareRate) * 100) / 100;
+      commission.user_share = Math.round(postTaxCommission * shareRate * 100) / 100;
+      commission.owner_share = Math.round((netCommission - commission.user_share) * 100) / 100;
       matched.push(commission);
     } else {
       // No matching conversion - unmatched order

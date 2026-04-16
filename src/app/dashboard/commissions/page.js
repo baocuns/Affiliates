@@ -83,19 +83,28 @@ export default function CommissionsPage() {
     {
       header: 'Hoa hồng',
       key: 'user_share',
-      width: '100px',
-      render: (row) => <span className="text-sm font-bold text-primary">{formatCurrency(row.user_share)}</span>,
+      width: '140px',
+      render: (row) => (
+        <div>
+          <span className="text-sm font-bold text-primary">{formatCurrency(row.user_share)}</span>
+          {row.tax_amount > 0 && (
+            <div className="text-[10px] text-muted mt-0.5 leading-tight">
+              <p>Gốc: {formatCurrency(row.total_commission)}</p>
+              <p>Thuế: {formatCurrency(row.tax_amount)}</p>
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       header: 'Trạng thái',
       key: 'payment_status',
       width: '100px',
       render: (row) => (
-        <span className={`status-badge ${
-          row.payment_status === 'paid' ? 'status-paid' :
-          row.payment_status === 'cancelled' ? 'status-cancelled' :
-          'status-pending'
-        }`}>
+        <span className={`status-badge ${row.payment_status === 'paid' ? 'status-paid' :
+            row.payment_status === 'cancelled' ? 'status-cancelled' :
+              'status-pending'
+          }`}>
           {row.payment_status === 'paid' ? '✅ Đã nhận' : row.payment_status === 'cancelled' ? '❌ Hủy' : '⏳ Chờ TT'}
         </span>
       ),
