@@ -32,24 +32,36 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    const handleSession = async (session) => {
+      const currentUser = session?.user ?? null;
+      if (mounted) setUser(currentUser);
+
+      if (currentUser) {
+        const prof = await fetchProfile(currentUser.id);
+        if (mounted) setProfile(prof);
+      } else {
+        if (mounted) setProfile(null);
+      }
+      if (mounted) setLoading(false);
+    };
+
+    // Fetch initial session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) handleSession(session);
+    });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const prof = await fetchProfile(currentUser.id);
-          setProfile(prof);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
+        // onAuthStateChange can fire INITIAL_SESSION or subsequent events
+        if (mounted) handleSession(session);
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
