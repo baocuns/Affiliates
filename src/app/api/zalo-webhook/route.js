@@ -148,47 +148,7 @@ export async function POST(request) {
     // --- 4. Unauthenticated Flow ---
     if (!profile) {
       
-      // If waiting for OTP
-      if (pendingProfile && isMessage) {
-        const otpMatch = userText.match(/\d{6}/);
-        
-        if (otpMatch) {
-          const token = otpMatch[0];
-          await sendMessage(chatId, '⏳ Đang xác minh mã OTP...');
-          const { error } = await supabaseAdmin.auth.verifyOtp({
-            email: pendingProfile.email,
-            token: token,
-            type: 'email'
-          });
-          
-          if (error) {
-             // Thử lại với type 'magiclink' nếu 'email' không được do khác biệt phiên bản Supabase
-             const { error: error2 } = await supabaseAdmin.auth.verifyOtp({
-                email: pendingProfile.email,
-                token: token,
-                type: 'magiclink'
-             });
-             
-             if (error2) {
-                await sendMessage(chatId, `❌ Sai mã OTP hoặc mã đã hết hạn. Vui lòng nhập lại, hoặc gửi một email khác để bắt đầu lại.`);
-                return NextResponse.json({ message: 'Success' });
-             }
-          }
-          
-          // OTP valid
-          await supabaseAdmin.from('profiles').update({ zalo_id: chatId }).eq('id', pendingProfile.id);
-          await sendMessage(chatId, `✅ Xác minh thành công!\nBạn đã liên kết Zalo ID với tài khoản **${pendingProfile.email}**.\n\n🎉 Bây giờ bạn đã có thể gửi link Shopee để tạo link Affiliate!`);
-          return NextResponse.json({ message: 'Success' });
-        }
-        
-        // If they sent something else and it's NOT an email, remind them:
-        if (!isValidEmail(userText)) {
-           await sendMessage(chatId, `Vui lòng nhập mã OTP gồm 6 chữ số đã gửi về email **${pendingProfile.email}**.\n\n(Hoặc nhập một địa chỉ email khác nếu bạn muốn thử lại).`);
-           return NextResponse.json({ message: 'Success' });
-        }
-      }
-
-      // If user inputs an email
+      // If user inputs a valid email FIRST
       if (isMessage && isValidEmail(userText)) {
         const email = userText.toLowerCase();
         await sendChatAction(chatId);
@@ -198,13 +158,11 @@ export async function POST(request) {
         const targetProfile = matchedProfiles?.[0];
 
         if (targetProfile) {
-          // If email exists and already linked to another REAL Zalo ID
           if (targetProfile.zalo_id && !targetProfile.zalo_id.startsWith('pending:')) {
             await sendMessage(chatId, `❌ Email **${email}** đã được liên kết với một tài khoản Zalo khác! Vui lòng sử dụng email khác.`);
             return NextResponse.json({ message: 'Success' });
           }
           
-          // Set as pending for this Zalo ID and send OTP
           await supabaseAdmin.from('profiles').update({ zalo_id: `pending:${chatId}` }).eq('id', targetProfile.id);
           const { error } = await supabaseAdmin.auth.signInWithOtp({ email });
           
@@ -215,7 +173,6 @@ export async function POST(request) {
           }
           return NextResponse.json({ message: 'Success' });
         } else {
-          // Email does not exist -> Create account directly
           await sendMessage(chatId, '⏳ Email chưa đăng ký, hệ thống đang tự động tạo tài khoản mới...');
           
           const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-5);
@@ -230,10 +187,8 @@ export async function POST(request) {
              return NextResponse.json({ message: 'Success' });
           }
           
-          // Wait 1 second for the Supabase DB trigger to actually create the profile
           await new Promise(r => setTimeout(r, 1000));
           
-          // Update the newly created profile with Zalo ID
           if (authData?.user) {
             await supabaseAdmin.from('profiles').update({ zalo_id: chatId }).eq('id', authData.user.id);
           }
@@ -241,11 +196,48 @@ export async function POST(request) {
           await sendMessage(chatId, `✅ Tự động tạo tài khoản và liên kết thành công!\n\n📧 Email: ${email}\n🔑 Mật khẩu: ${generatedPassword}\n\n💡 Bạn có thể dùng thông tin này để đăng nhập trên Web quản trị.\n\n🎉 Bây giờ bạn đã có thể gửi link Shopee!`);
           return NextResponse.json({ message: 'Success' });
         }
+      } 
+      // If waiting for OTP
+      else if (pendingProfile && isMessage) {
+        const otpMatch = userText.match(/\d{6}/);
+        
+        if (otpMatch) {
+          const token = otpMatch[0];
+          await sendMessage(chatId, '⏳ Đang xác minh mã OTP...');
+          const { error } = await supabaseAdmin.auth.verifyOtp({
+            email: pendingProfile.email,
+            token: token,
+            type: 'email'
+          });
+          
+          if (error) {
+             const { error: error2 } = await supabaseAdmin.auth.verifyOtp({
+                email: pendingProfile.email,
+                token: token,
+                type: 'magiclink'
+             });
+             
+             if (error2) {
+                await sendMessage(chatId, `❌ Sai mã OTP hoặc mã đã hết hạn. Vui lòng nhập lại, hoặc gửi một email khác để bắt đầu lại.`);
+                return NextResponse.json({ message: 'Success' });
+             }
+          }
+          
+          await supabaseAdmin.from('profiles').update({ zalo_id: chatId }).eq('id', pendingProfile.id);
+          await sendMessage(chatId, `✅ Xác minh thành công!\nBạn đã liên kết Zalo ID với tài khoản **${pendingProfile.email}**.\n\n🎉 Bây giờ bạn đã có thể gửi link Shopee để tạo link Affiliate!`);
+          return NextResponse.json({ message: 'Success' });
+        } else {
+          // If they sent something else and it's NOT an email, remind them:
+          await sendMessage(chatId, `Vui lòng nhập mã OTP gồm 6 chữ số đã gửi về email **${pendingProfile.email}**.\n\n(Hoặc nhập một địa chỉ email khác nếu bạn muốn thử lại).`);
+          return NextResponse.json({ message: 'Success' });
+        }
+      }
+      // If they sent garbage or a product link early without auth
+      else if (isUnsupported || isMessage) {
+        await sendMessage(chatId, NEED_AUTH_MESSAGE);
+        return NextResponse.json({ message: 'Success' });
       }
 
-      // If they sent garbage or a product link early without auth
-      await sendMessage(chatId, NEED_AUTH_MESSAGE);
-      return NextResponse.json({ message: 'Success' });
     }
 
     // --- 5. Authenticated flow: User has a valid linked profile ---
