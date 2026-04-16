@@ -199,7 +199,7 @@ export async function POST(request) {
       } 
       // If waiting for OTP
       else if (pendingProfile && isMessage) {
-        const otpMatch = userText.match(/\d{6}/);
+        const otpMatch = userText.match(/\d{6,10}/); // Hỗ trợ luôn mã OTP 6-10 số đề phòng
         
         if (otpMatch) {
           const token = otpMatch[0];
@@ -228,7 +228,7 @@ export async function POST(request) {
           return NextResponse.json({ message: 'Success' });
         } else {
           // If they sent something else and it's NOT an email, remind them:
-          await sendMessage(chatId, `Vui lòng nhập mã OTP gồm 6 chữ số đã gửi về email **${pendingProfile.email}**.\n\n(Hoặc nhập một địa chỉ email khác nếu bạn muốn thử lại).`);
+          await sendMessage(chatId, `Vui lòng nhập mã OTP đã gửi về email **${pendingProfile.email}**.\n\n(Hoặc nhập một địa chỉ email khác nếu bạn muốn thử lại).`);
           return NextResponse.json({ message: 'Success' });
         }
       }
