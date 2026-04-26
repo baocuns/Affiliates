@@ -46,10 +46,10 @@ export async function POST(request) {
       }
     }
 
-    // Step 1: Process URL → resolve short link + extract IDs + build affiliate link
-    const result = await processShopeeUrl(url, affiliateId, subId1, shortId);
+    // Step 1: Process URL → validate + build affiliate link (synchronous, no fetch)
+    const result = processShopeeUrl(url, affiliateId, subId1, shortId);
 
-    // Step 2: Fetch product info via OG scraper
+    // Step 2: Fetch product info via OG meta tags
     let product = null;
     try {
       product = await getProductInfo(result.productUrl);
@@ -62,20 +62,24 @@ export async function POST(request) {
     let conversionId = null;
     if (user && shortId) {
       try {
+        const insertData = {
+          short_id: shortId,
+          user_id: user.id,
+          original_url: result.originalUrl,
+          affiliate_url: result.affiliateLink,
+          product_name: product?.name || 'Sản phẩm Shopee',
+          product_image: product?.image || null,
+          product_description: product?.description || null,
+          source: 'web',
+        };
+
+        // Only include IDs if they were extracted
+        if (result.shopId) insertData.shop_id = parseInt(result.shopId);
+        if (result.itemId) insertData.item_id = parseInt(result.itemId);
+
         const { data: conversion, error: insertError } = await supabase
           .from('conversions')
-          .insert({
-            short_id: shortId,
-            user_id: user.id,
-            original_url: result.originalUrl,
-            affiliate_url: result.affiliateLink,
-            product_name: product?.name || 'Sản phẩm Shopee',
-            product_image: product?.image || null,
-            product_description: product?.description || null,
-            shop_id: parseInt(result.shopId) || null,
-            item_id: parseInt(result.itemId) || null,
-            source: 'web',
-          })
+          .insert(insertData)
           .select('id')
           .single();
 
@@ -116,3 +120,4 @@ export async function POST(request) {
     );
   }
 }
+
