@@ -311,8 +311,8 @@ export async function POST(request) {
         if (!existing) break;
       }
 
-      // Process URL -> validate + build affiliate link (synchronous)
-      const result = processShopeeUrl(shopeeUrl, affiliateId, subId1, shortId);
+      // Process URL -> resolve short link + extract IDs + build affiliate link
+      const result = await processShopeeUrl(shopeeUrl, affiliateId, subId1, shortId);
 
       // Fetch product info via OG meta tags
       let product = null;
@@ -325,24 +325,20 @@ export async function POST(request) {
       // Save conversion to database for tracking
       if (shortId && profile.id) {
         try {
-          const insertData = {
-            short_id: shortId,
-            user_id: profile.id,
-            original_url: result.originalUrl,
-            affiliate_url: result.affiliateLink,
-            product_name: product?.name || 'Sản phẩm Shopee',
-            product_image: product?.image || null,
-            product_description: product?.description || null,
-            source: 'zalo',
-          };
-
-          // Only include IDs if they were extracted
-          if (result.shopId) insertData.shop_id = parseInt(result.shopId);
-          if (result.itemId) insertData.item_id = parseInt(result.itemId);
-
           const { error: insertError } = await supabaseAdmin
             .from('conversions')
-            .insert(insertData);
+            .insert({
+              short_id: shortId,
+              user_id: profile.id,
+              original_url: result.originalUrl,
+              affiliate_url: result.affiliateLink,
+              product_name: product?.name || 'Sản phẩm Shopee',
+              product_image: product?.image || null,
+              product_description: product?.description || null,
+              shop_id: parseInt(result.shopId) || null,
+              item_id: parseInt(result.itemId) || null,
+              source: 'zalo',
+            });
 
           if (insertError) console.error('Failed to save Zalo conversion:', insertError.message);
         } catch (dbErr) {

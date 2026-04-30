@@ -5,18 +5,13 @@
  * 1. https://s.shopee.vn/XXXXX (link rút gọn từ app)
  * 2. https://shopee.vn/product-name-i.SHOP_ID.ITEM_ID
  * 3. https://shopee.vn/product/SHOP_ID/ITEM_ID
- * 4. https://shopee.vn/shop-name (link shop/page)
- * 
- * Cách tạo affiliate link:
- * - Encode trực tiếp URL người dùng paste vào
- * - Gắn vào template: https://s.shopee.vn/an_redir?origin_link={encoded}&affiliate_id={id}&sub_id={sub}
- * - Không cần resolve short link hay extract IDs
+ * 4. https://shopee.vn/opaanlp/SHOP_ID/ITEM_ID (redirect from short link)
  */
 
 const SHOPEE_DOMAINS = ['shopee.vn', 's.shopee.vn', 'shope.ee', 'vn.shp.ee'];
 
 /**
- * Check if URL is a Shopee short link
+ * Check if URL is a Shopee short link that needs to be resolved
  */
 export function isShortLink(url) {
   try {
@@ -40,8 +35,39 @@ export function isValidShopeeUrl(url) {
 }
 
 /**
- * Extract shop_id and item_id from a Shopee URL (optional, for tracking only)
- * Returns null if IDs cannot be extracted (e.g. shop pages, promo links)
+ * Resolve a Shopee short link (s.shopee.vn/xxx) to full URL
+ * Returns the Location header from the 301 redirect
+ */
+export async function resolveShortLink(shortUrl) {
+  try {
+    const response = await fetch(shortUrl, {
+      method: 'HEAD',
+      redirect: 'manual',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    const location = response.headers.get('location');
+    if (location) {
+      return location;
+    }
+
+    // If HEAD doesn't give Location, try GET with redirect follow
+    const getResponse = await fetch(shortUrl, {
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    return getResponse.url;
+  } catch (error) {
+    throw new Error(`Không thể resolve link rút gọn: ${error.message}`);
+  }
+}
+
+/**
+ * Extract shop_id and item_id from a Shopee URL
  */
 export function extractIds(url) {
   // Decode URL-encoded characters first (e.g. %2F → /)
@@ -65,13 +91,20 @@ export function extractIds(url) {
     return { shopId: match[1], itemId: match[2] };
   }
 
-  // Pattern 3: /ANYTHING/SHOP_ID/ITEM_ID (e.g. /opaanlp/123/456)
+  // Pattern 3: /ANYTHING/SHOP_ID/ITEM_ID (from resolved short links like /opaanlp/123/456)
   match = decodedUrl.match(/\/[a-zA-Z]+\/(\d+)\/(\d+)/);
   if (match) {
     return { shopId: match[1], itemId: match[2] };
   }
 
   return null;
+}
+
+/**
+ * Build the canonical Shopee product URL
+ */
+export function buildProductUrl(shopId, itemId) {
+  return `https://shopee.vn/product/${shopId}/${itemId}`;
 }
 
 /**
@@ -89,7 +122,6 @@ export function generateShortId() {
 
 /**
  * Build the affiliate redirect URL
- * Encode trực tiếp URL gốc và gắn vào template affiliate
  * sub_id format: {subId1}-{subId2} → Shopee auto-splits by '-' into Sub_id1, Sub_id2
  */
 export function buildAffiliateLink(originalUrl, affiliateId, subId1 = '', subId2 = '') {
@@ -103,14 +135,9 @@ export function buildAffiliateLink(originalUrl, affiliateId, subId1 = '', subId2
 }
 
 /**
- * Main function: Process any type of Shopee URL and return affiliate link
- * 
- * Flow đơn giản:
- * 1. Validate URL là Shopee
- * 2. Encode trực tiếp URL → tạo affiliate link
- * 3. Extract IDs (optional, cho tracking)
+ * Main function: Process any type of Shopee URL and return affiliate link + IDs
  */
-export function processShopeeUrl(inputUrl, affiliateId, subId1 = '', subId2 = '') {
+export async function processShopeeUrl(inputUrl, affiliateId, subId1 = '', subId2 = '') {
   // Step 1: Validate input
   let url = inputUrl.trim();
   if (!url.startsWith('http')) {
@@ -121,17 +148,29 @@ export function processShopeeUrl(inputUrl, affiliateId, subId1 = '', subId2 = ''
     throw new Error('URL không phải là link Shopee hợp lệ. Vui lòng nhập link từ shopee.vn');
   }
 
-  // Step 2: Build affiliate link directly from input URL (no resolve needed)
-  const affiliateLink = buildAffiliateLink(url, affiliateId, subId1, subId2);
+  // Step 2: Resolve short link if needed
+  let resolvedUrl = url;
+  if (isShortLink(url)) {
+    resolvedUrl = await resolveShortLink(url);
+  }
 
-  // Step 3: Extract IDs for tracking (optional, won't fail if not found)
-  const ids = extractIds(url);
+  // Step 3: Extract IDs
+  const ids = extractIds(resolvedUrl);
+  if (!ids) {
+    throw new Error('Không tìm thấy thông tin sản phẩm trong link. Vui lòng kiểm tra lại URL.');
+  }
+
+  // Step 4: Build canonical product URL and affiliate link
+  const productUrl = buildProductUrl(ids.shopId, ids.itemId);
+  const affiliateLink = buildAffiliateLink(productUrl, affiliateId, subId1, subId2);
 
   return {
-    shopId: ids?.shopId || null,
-    itemId: ids?.itemId || null,
-    productUrl: url,
+    shopId: ids.shopId,
+    itemId: ids.itemId,
+    productUrl,
     affiliateLink,
     originalUrl: url,
+    resolvedUrl,
   };
 }
+
