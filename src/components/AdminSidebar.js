@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const NAV_ITEMS = [
   { href: '/admin', icon: '📊', label: 'Tổng quan', exact: true },
   { href: '/admin/users', icon: '👥', label: 'Người dùng' },
+  { href: '/admin/conversions', icon: '🔗', label: 'Link chuyển đổi' },
   { href: '/admin/commissions', icon: '💰', label: 'Hoa hồng' },
   { href: '/admin/import', icon: '📥', label: 'Import CSV' },
   { href: '/admin/payments', icon: '💳', label: 'Chi trả' },

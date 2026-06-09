@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DataTable from '@/components/DataTable';
 import { formatCurrency } from '@/lib/csv-parser';
+import UserConversionsModal from '@/components/UserConversionsModal';
 
 export default function AdminUsersPage() {
   const { supabase } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     loadUsers();
@@ -98,8 +100,15 @@ export default function AdminUsersPage() {
     {
       header: 'Links',
       key: 'conversionCount',
-      width: '70px',
-      render: (row) => <span className="text-sm text-center block">{row.conversionCount}</span>,
+      width: '90px',
+      render: (row) => (
+        <button
+          onClick={() => setSelectedUser(row)}
+          className="text-sm font-semibold text-primary hover:underline block w-full text-center cursor-pointer"
+        >
+          {row.conversionCount} link
+        </button>
+      ),
     },
     {
       header: 'Hoa hồng',
@@ -112,6 +121,19 @@ export default function AdminUsersPage() {
       key: 'created_at',
       width: '100px',
       render: (row) => <span className="text-xs text-muted">{new Date(row.created_at).toLocaleDateString('vi-VN')}</span>,
+    },
+    {
+      header: 'Thao tác',
+      key: 'action',
+      width: '90px',
+      render: (row) => (
+        <button
+          onClick={() => setSelectedUser(row)}
+          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+        >
+          Chi tiết
+        </button>
+      ),
     },
   ];
 
@@ -131,6 +153,15 @@ export default function AdminUsersPage() {
       </div>
 
       <DataTable columns={columns} data={filtered} loading={loading} emptyMessage="Chưa có người dùng" />
+
+      <UserConversionsModal
+        isOpen={!!selectedUser}
+        onClose={() => {
+          setSelectedUser(null);
+          loadUsers();
+        }}
+        user={selectedUser}
+      />
     </div>
   );
 }
